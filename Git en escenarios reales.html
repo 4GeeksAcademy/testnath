@@ -1,0 +1,684 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Git en escenarios reales</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: banda de cabecera, mapa de las 4 zonas, luego secciones con tarjetas de escenario en rejilla (situación, dibujo, comandos, por qué) */
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --ink:#16202c; --muted:#5a6676; --line:#dce2ea; --code:#edf1f6;
+  --accent:#2f5bd3; --head:#1d3f9e; --head-ink:#ffffff;
+  --l0:#2f5bd3; --l1:#d9822b; --l2:#1f9d7a;
+  --ok:#1f8a5b; --warn:#b7791f; --danger:#c8372d;
+  --ok-bg:#e3f4ec; --warn-bg:#fbf0dc; --danger-bg:#fbe4e2;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f141b; --surface:#161d27; --ink:#e6ebf1; --muted:#9aa6b4; --line:#263140; --code:#1d2632;
+  --accent:#7aa2ff; --head:#18284d; --head-ink:#eef2ff;
+  --l0:#7aa2ff; --l1:#f0a24f; --l2:#4cc9a4;
+  --ok:#4cc38a; --warn:#e0b04a; --danger:#ff6b5e;
+  --ok-bg:#15302a; --warn-bg:#33291a; --danger-bg:#3a1d1d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f141b; --surface:#161d27; --ink:#e6ebf1; --muted:#9aa6b4; --line:#263140; --code:#1d2632;
+  --accent:#7aa2ff; --head:#18284d; --head-ink:#eef2ff;
+  --l0:#7aa2ff; --l1:#f0a24f; --l2:#4cc9a4;
+  --ok:#4cc38a; --warn:#e0b04a; --danger:#ff6b5e;
+  --ok-bg:#15302a; --warn-bg:#33291a; --danger-bg:#3a1d1d; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0}
+code,.mono{font-family:var(--f-mono)}
+
+header.band{background:var(--head);color:var(--head-ink)}
+header.band .wrap{padding-block:40px 32px;display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
+header h1{font-size:clamp(32px,5vw,54px);font-weight:800;line-height:1.05;margin-top:8px}
+header p{max-width:62ch;margin:14px 0 0;opacity:.92;font-size:17px}
+header svg{width:220px;height:auto}
+@media (max-width:720px){header.band .wrap{grid-template-columns:1fr} header svg{display:none}}
+
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--head)}
+nav.toc .wrap{display:flex;gap:8px;align-items:center;padding-block:10px;overflow-x:auto}
+nav.toc a{flex:none;font-size:14px;color:var(--ink);text-decoration:none;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
+nav.toc a:hover,nav.toc a:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}
+nav.toc input{flex:1 0 180px;min-width:0;font:inherit;font-size:14px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink)}
+nav.toc input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+main{padding-block:28px 64px}
+section.part{margin-top:48px;scroll-margin-top:70px}
+section.part > .intro{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:20px}
+section.part h2{font-size:clamp(24px,3vw,32px);font-weight:800}
+section.part .intro p{margin:0;color:var(--muted);max-width:70ch}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,480px),1fr));gap:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.card .top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.card h3{font-size:19px;font-weight:600;line-height:1.25}
+.card .sit{font-size:12px;font-family:var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px}
+.risk{flex:none;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.risk.ok{background:var(--ok-bg);color:var(--ok)}
+.risk.warn{background:var(--warn-bg);color:var(--warn)}
+.risk.danger{background:var(--danger-bg);color:var(--danger)}
+
+.viz{overflow-x:auto;background:var(--bg);border-radius:8px;padding:10px 8px}
+.viz svg{display:block;max-width:100%;height:auto}
+.viz .cap{font-size:12px;color:var(--muted);font-family:var(--f-mono);margin:0 0 2px 6px}
+.viz.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (max-width:560px){.viz.pair{grid-template-columns:1fr}}
+
+.cmds{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.cmd{display:grid;grid-template-columns:minmax(0,1fr);border-top:1px solid var(--line)}
+.cmd:first-child{border-top:0}
+.cmd button{all:unset;cursor:pointer;display:block;background:var(--code);font-family:var(--f-mono);font-size:13.5px;font-weight:600;padding:8px 12px;overflow-x:auto;white-space:pre;position:relative}
+.cmd button::before{content:"$ ";color:var(--muted);font-weight:400}
+.cmd button:hover,.cmd button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.cmd button.copied::after{content:"copiado";position:absolute;right:10px;top:8px;font-size:11px;color:var(--ok);font-weight:600}
+.cmd span{padding:6px 12px 8px;font-size:14.5px;color:var(--muted)}
+.why{font-size:15px;margin:0;padding-left:12px;border-left:3px solid var(--line)}
+.why b{color:var(--ink)}
+.why.alert{border-left-color:var(--danger)}
+
+.areas{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:8px}
+.areas h2{font-size:22px;font-weight:800}
+.areas p{color:var(--muted);margin:6px 0 12px;max-width:70ch}
+.areas .scroll{overflow-x:auto}
+.areas svg{min-width:640px;width:100%;height:auto;display:block}
+
+.conflict{font-family:var(--f-mono);font-size:13px;background:var(--code);border-radius:8px;padding:10px 12px;margin:0;overflow-x:auto;white-space:pre;line-height:1.6}
+.conflict .m{color:var(--danger);font-weight:600}
+.conflict .a{color:var(--l0)}
+.conflict .b{color:var(--l1)}
+.conflict .c{color:var(--muted)}
+
+ol.steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;counter-reset:s}
+ol.steps li{counter-increment:s;background:var(--bg);border-radius:8px;padding:8px;font-size:13px;line-height:1.35}
+ol.steps li::before{content:counter(s);display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--surface);font-weight:700;font-size:12px;margin-bottom:6px}
+@media (max-width:560px){ol.steps{grid-template-columns:1fr 1fr}}
+
+.rules{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:14px}
+.rule{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.rule b{font-family:var(--f-display);font-size:17px;display:block;margin-bottom:4px}
+.rule p{margin:0;color:var(--muted);font-size:15px}
+.daily{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:20px}
+.daily h3{font-size:20px;font-weight:800;margin-bottom:10px}
+.empty{display:none;color:var(--muted);padding:20px 0}
+footer{color:var(--muted);font-size:13px;padding-block:24px 40px;border-top:1px solid var(--line)}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+
+<header class="band">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Guía práctica · Git y GitHub</div>
+      <h1>Git en escenarios reales</h1>
+      <p>La hoja de referencia te dice qué hace cada comando. Esta guía te dice <b>cuándo</b> usarlo: busca la situación en la que estás, mira el dibujo de lo que pasa con tus commits y copia los comandos.</p>
+    </div>
+    <svg viewBox="0 0 220 110" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="3" opacity=".55">
+        <path d="M14 30H206"/><path d="M70 30C100 30 100 80 130 80H170C190 80 190 30 206 30"/>
+      </g>
+      <g fill="currentColor"><circle cx="14" cy="30" r="8"/><circle cx="56" cy="30" r="8"/><circle cx="98" cy="30" r="8"/><circle cx="206" cy="30" r="10"/></g>
+      <g fill="#f0a24f"><circle cx="130" cy="80" r="8"/><circle cx="170" cy="80" r="8"/></g>
+    </svg>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Secciones">
+  <div class="wrap">
+    <a href="#empezar">Empezar</a>
+    <a href="#dia">Día a día</a>
+    <a href="#ramas">Ramas</a>
+    <a href="#equipo">Equipo</a>
+    <a href="#deshacer">Deshacer</a>
+    <a href="#pausa">Interrupciones</a>
+    <a href="#historial">Historial</a>
+    <a href="#reglas">Reglas</a>
+    <input id="q" type="search" placeholder="Buscar situación o comando…" aria-label="Buscar situación o comando">
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <div class="areas">
+    <h2>El mapa: dónde vive tu código</h2>
+    <p>Casi todo en Git es mover cambios entre estas cuatro zonas. Cuando no sepas qué comando usar, pregúntate: ¿de qué zona a qué zona quiero llevar mis cambios?</p>
+    <div class="scroll"><svg id="mapa" viewBox="0 0 760 250" role="img" aria-label="Las cuatro zonas de Git y los comandos que mueven cambios entre ellas"></svg></div>
+  </div>
+  <div class="viz" style="margin-top:12px;background:transparent;padding:0">
+    <p class="cap" style="margin:0">Leyenda de los dibujos de commits:</p>
+    <svg id="leyenda" viewBox="0 0 700 40" style="max-width:700px" aria-label="Leyenda"></svg>
+  </div>
+
+  <!-- EMPEZAR -->
+  <section class="part" id="empezar">
+    <div class="intro"><h2>Empiezo un proyecto</h2><p>Lo que haces una sola vez por computador o por proyecto.</p></div>
+    <div class="grid">
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Es mi primera vez usando Git en este computador</h3><span class="risk ok">Seguro</span></div>
+        <div class="cmds">
+          <div class="cmd"><button>git config --global user.name "Tu Nombre"</button><span>Tu nombre aparece en cada commit que hagas.</span></div>
+          <div class="cmd"><button>git config --global user.email "tu@correo.com"</button><span>Usa el mismo correo de tu cuenta de GitHub, así tus commits quedan ligados a tu perfil.</span></div>
+          <div class="cmd"><button>git config --global init.defaultBranch main</button><span>Los repos nuevos arrancan con la rama main.</span></div>
+        </div>
+        <p class="why"><b>Por qué:</b> si no lo configuras, tus commits salen con un autor raro o Git te bloquea el primer commit.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Tengo una carpeta con código y quiero subirla a GitHub</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-flow="init"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git init</button><span>Convierte la carpeta en repositorio (crea la carpeta oculta .git).</span></div>
+          <div class="cmd"><button>git add .</button><span>Prepara todos los archivos. Antes crea tu .gitignore.</span></div>
+          <div class="cmd"><button>git commit -m "Primer commit"</button><span>Guarda la primera foto del proyecto.</span></div>
+          <div class="cmd"><button>git remote add origin https://github.com/usuario/repo.git</button><span>Conecta tu repo local con el repo vacío que creaste en GitHub.</span></div>
+          <div class="cmd"><button>git push -u origin main</button><span>Sube main y la deja enlazada. Los siguientes push son solo <code>git push</code>.</span></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Me unieron a un proyecto que ya existe en GitHub</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-flow="clone"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git clone https://github.com/empresa/proyecto.git</button><span>Descarga el código y toda su historia.</span></div>
+          <div class="cmd"><button>cd proyecto</button><span>Entra a la carpeta; Git ya quedó conectado con origin.</span></div>
+        </div>
+        <p class="why"><b>Cuándo NO usar init:</b> si el repo ya existe en GitHub, nunca hagas <code>git init</code> y copies archivos a mano. Clona.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>No quiero subir .env, node_modules ni archivos del sistema</h3><span class="risk warn">Cuidado</span></div>
+        <div class="cmds">
+          <div class="cmd"><button>echo ".env" >> .gitignore</button><span>Agrega la regla al .gitignore (también node_modules/, .venv/, .DS_Store).</span></div>
+          <div class="cmd"><button>git rm --cached .env</button><span>Si ya lo habías subido: lo saca del repo pero lo deja en tu disco.</span></div>
+          <div class="cmd"><button>git commit -m "Dejar de versionar .env"</button><span>Registra el cambio.</span></div>
+        </div>
+        <p class="why alert"><b>Ojo:</b> .gitignore solo ignora archivos que Git aún no sigue. Si una contraseña ya llegó a GitHub, mira el escenario de credenciales en <a href="#deshacer">Deshacer</a>.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- DIA A DIA -->
+  <section class="part" id="dia">
+    <div class="intro"><h2>Trabajo del día a día</h2><p>El ciclo que repites decenas de veces: revisar, preparar, guardar, subir.</p></div>
+    <div class="grid">
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Terminé un pedacito que funciona y quiero guardarlo</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-flow="ciclo"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git status</button><span>¿Qué cambié? Úsalo antes de cada add y cada commit.</span></div>
+          <div class="cmd"><button>git diff</button><span>Revisa línea por línea lo que vas a guardar.</span></div>
+          <div class="cmd"><button>git add src/login.js</button><span>Prepara solo los archivos de este cambio.</span></div>
+          <div class="cmd"><button>git commit -m "Validar email en el login"</button><span>Mensaje en presente que diga qué hace el cambio.</span></div>
+          <div class="cmd"><button>git push</button><span>Súbelo cuando quieras respaldo o que otros lo vean.</span></div>
+        </div>
+        <p class="why"><b>Regla práctica:</b> un commit = una idea. "Arreglos varios" no le sirve a nadie dentro de tres meses.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Cambié muchas cosas pero quiero commits separados</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-flow="parcial"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git add -p</button><span>Git te muestra cada bloque de cambios y respondes y (sí) o n (no).</span></div>
+          <div class="cmd"><button>git diff --staged</button><span>Revisa lo que ya quedó preparado antes del commit.</span></div>
+          <div class="cmd"><button>git commit -m "Corregir cálculo del total"</button><span>Primer commit. Repite add -p para el siguiente.</span></div>
+        </div>
+        <p class="why"><b>Cuándo:</b> arreglaste un bug y de paso cambiaste estilos. Son dos commits: si el estilo hay que revertirlo, el bug sigue arreglado.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- RAMAS -->
+  <section class="part" id="ramas">
+    <div class="intro"><h2>Trabajo con ramas</h2><p>Una rama es una línea de trabajo aislada. main debe estar siempre funcionando.</p></div>
+    <div class="grid">
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Voy a empezar una funcionalidad nueva</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-g="nueva"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git switch main</button><span>Parte siempre de main...</span></div>
+          <div class="cmd"><button>git pull</button><span>...actualizado.</span></div>
+          <div class="cmd"><button>git switch -c feature/login</button><span>Crea la rama y se pasa a ella (antes: <code>git checkout -b</code>).</span></div>
+        </div>
+        <p class="why"><b>Nombres útiles:</b> feature/..., fix/..., docs/... Así el equipo sabe qué es cada rama sin abrirla.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Mi rama quedó atrasada: main avanzó mientras yo trabajaba</h3><span class="risk warn">Cuidado</span></div>
+        <div class="viz pair"><div><p class="cap">Opción A: merge</p><div data-g="merge"></div></div><div><p class="cap">Opción B: rebase</p><div data-g="rebase"></div></div></div>
+        <div class="cmds">
+          <div class="cmd"><button>git fetch origin</button><span>Trae lo nuevo de GitHub sin tocar tu código.</span></div>
+          <div class="cmd"><button>git merge origin/main</button><span>A: une main en tu rama con un commit de merge. Seguro siempre.</span></div>
+          <div class="cmd"><button>git rebase origin/main</button><span>B: reescribe tus commits encima de main. Historia limpia.</span></div>
+        </div>
+        <p class="why"><b>Cuál elegir:</b> rebase solo en ramas tuyas que nadie más usa. Si la rama es compartida, usa merge.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Terminé la funcionalidad y quiero que entre a main</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-g="pr"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git push -u origin feature/login</button><span>Sube tu rama a GitHub.</span></div>
+          <div class="cmd"><button>gh pr create --fill</button><span>Abre el Pull Request (o hazlo desde la web de GitHub).</span></div>
+          <div class="cmd"><button>git switch main && git pull</button><span>Después de que aprueben y unan el PR.</span></div>
+          <div class="cmd"><button>git branch -d feature/login</button><span>Borra la rama local; ya está dentro de main.</span></div>
+        </div>
+        <p class="why"><b>Por qué PR y no merge directo:</b> otra persona revisa el código y el CI corre las pruebas antes de tocar main.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Hice merge y Git dice CONFLICT</h3><span class="risk warn">Cuidado</span></div>
+        <pre class="conflict"><span class="m">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</span>
+<span class="a">const limite = 10;</span>            <span class="c">// lo que hay en tu rama</span>
+<span class="m">=======</span>
+<span class="b">const limite = 25;</span>            <span class="c">// lo que viene de la otra rama</span>
+<span class="m">&gt;&gt;&gt;&gt;&gt;&gt;&gt; main</span></pre>
+        <div class="cmds">
+          <div class="cmd"><button>git status</button><span>Lista los archivos en conflicto ("both modified").</span></div>
+          <div class="cmd"><button>code archivo.js</button><span>Edita: deja la versión correcta y borra las marcas &lt;&lt;&lt; === &gt;&gt;&gt;.</span></div>
+          <div class="cmd"><button>git add archivo.js</button><span>Marca el conflicto como resuelto.</span></div>
+          <div class="cmd"><button>git commit</button><span>Cierra el merge.</span></div>
+          <div class="cmd"><button>git merge --abort</button><span>Salida de emergencia: vuelve a como estabas antes del merge.</span></div>
+        </div>
+        <p class="why"><b>No es un error:</b> Git solo te pide que decidas porque dos personas cambiaron la misma línea. Si no sabes cuál va, pregunta a quien hizo el otro cambio.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- EQUIPO -->
+  <section class="part" id="equipo">
+    <div class="intro"><h2>Trabajo en equipo con GitHub</h2><p>Tu repo local y el de GitHub no se sincronizan solos.</p></div>
+    <div class="grid">
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Llego a trabajar en la mañana</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-flow="pull"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git switch main</button><span>Ve a main.</span></div>
+          <div class="cmd"><button>git pull</button><span>Trae y une lo que el equipo subió ayer (pull = fetch + merge).</span></div>
+          <div class="cmd"><button>git switch feature/login</button><span>Vuelve a tu rama y, si hace falta, actualízala con main.</span></div>
+        </div>
+        <p class="why"><b>Por qué:</b> entre más tiempo pases sin actualizar, más grandes serán los conflictos.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Hice push y salió "rejected (non-fast-forward)"</h3><span class="risk warn">Cuidado</span></div>
+        <div class="viz pair"><div><p class="cap">Antes: las historias se separaron</p><div data-g="rech1"></div></div><div><p class="cap">Después de pull --rebase</p><div data-g="rech2"></div></div></div>
+        <div class="cmds">
+          <div class="cmd"><button>git pull --rebase</button><span>Trae lo de tu compañero y pone tu commit encima.</span></div>
+          <div class="cmd"><button>git push</button><span>Ahora sí entra.</span></div>
+        </div>
+        <p class="why alert"><b>Nunca:</b> <code>git push --force</code> en main o en ramas compartidas para "quitar el error". Borras el trabajo de tu compañero en GitHub.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Quiero probar la rama de un compañero</h3><span class="risk ok">Seguro</span></div>
+        <div class="cmds">
+          <div class="cmd"><button>git fetch</button><span>Descarga las ramas nuevas de GitHub.</span></div>
+          <div class="cmd"><button>git branch -r</button><span>Lista las ramas remotas para ver el nombre exacto.</span></div>
+          <div class="cmd"><button>git switch fix/pagos</button><span>Git crea tu copia local enlazada a origin/fix/pagos.</span></div>
+        </div>
+        <p class="why"><b>Cuándo:</b> para revisar un PR corriendo el código en tu máquina, no solo leyéndolo.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- DESHACER -->
+  <section class="part" id="deshacer">
+    <div class="intro"><h2>Me equivoqué: cómo deshacer</h2><p>La pregunta clave siempre es la misma: ¿ya lo subiste con push?</p></div>
+    <div class="areas" style="margin-bottom:20px">
+      <h2>¿Qué quieres deshacer?</h2>
+      <p>Sigue la fila de tu caso. Lo que ya está en GitHub se corrige con un commit nuevo, no reescribiendo la historia.</p>
+      <div class="scroll"><svg id="arbol" viewBox="0 0 760 300" role="img" aria-label="Árbol de decisión para deshacer cambios en Git"></svg></div>
+    </div>
+    <div class="grid">
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Quiero botar los cambios de un archivo y volver a la última versión</h3><span class="risk danger">Destructivo</span></div>
+        <div class="viz" data-flow="restore"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git restore archivo.js</button><span>Descarta lo que no has preparado con add.</span></div>
+          <div class="cmd"><button>git restore --staged archivo.js</button><span>Si ya hiciste add: lo saca de staging, tu edición se conserva.</span></div>
+        </div>
+        <p class="why alert"><b>Sin vuelta atrás:</b> lo que nunca estuvo en un commit no se puede recuperar. Revisa con <code>git diff</code> antes.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>El último commit tiene un error en el mensaje o le faltó un archivo</h3><span class="risk warn">Cuidado</span></div>
+        <div class="viz" data-g="amend"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git commit --amend -m "Mensaje corregido"</button><span>Reemplaza el último commit con uno nuevo.</span></div>
+          <div class="cmd"><button>git add olvidado.js && git commit --amend --no-edit</button><span>Mete el archivo que faltaba sin cambiar el mensaje.</span></div>
+        </div>
+        <p class="why"><b>Solo si no hiciste push.</b> amend crea un commit distinto; si ya estaba en GitHub, haz un commit nuevo.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Hice commits en main cuando debían ir en una rama</h3><span class="risk warn">Cuidado</span></div>
+        <div class="viz pair"><div><p class="cap">Antes</p><div data-g="mal1"></div></div><div><p class="cap">Después</p><div data-g="mal2"></div></div></div>
+        <div class="cmds">
+          <div class="cmd"><button>git branch feature/reporte</button><span>Crea la rama apuntando a tus commits (no se pierden).</span></div>
+          <div class="cmd"><button>git reset --hard origin/main</button><span>Devuelve main a como está en GitHub.</span></div>
+          <div class="cmd"><button>git switch feature/reporte</button><span>Sigue trabajando donde debía ser.</span></div>
+        </div>
+        <p class="why"><b>Requisito:</b> no haber hecho push de main y no tener cambios sin commit (reset --hard los borra).</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Ya hice push de un commit que rompió la app</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-g="revert"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git log --oneline</button><span>Copia el hash del commit malo (ej. a1b2c3d).</span></div>
+          <div class="cmd"><button>git revert a1b2c3d</button><span>Crea un commit nuevo que hace lo contrario.</span></div>
+          <div class="cmd"><button>git push</button><span>Sube la corrección sin reescribir la historia.</span></div>
+        </div>
+        <p class="why"><b>Por qué revert y no reset:</b> tus compañeros ya tienen ese commit. revert agrega, no borra, así nadie queda con una historia distinta.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Hice reset y perdí commits que sí necesitaba</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-g="reflog"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git reflog</button><span>Historial de todo lo que hizo HEAD, incluso lo "borrado".</span></div>
+          <div class="cmd"><button>git branch rescate HEAD@{2}</button><span>Crea una rama en el punto que quieres recuperar.</span></div>
+        </div>
+        <p class="why"><b>Salvavidas:</b> un commit casi nunca se pierde de verdad. reflog los guarda unos 90 días en tu máquina.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Subí una contraseña, token o API key a GitHub</h3><span class="risk danger">Urgente</span></div>
+        <ol class="steps" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+          <li><b>Revoca</b> la clave en el servicio (AWS, Azure, OpenAI...). Hoy, no mañana.</li>
+          <li>Genera una nueva y guárdala en .env o un gestor de secretos.</li>
+          <li>Agrega el archivo a .gitignore y haz <code>git rm --cached</code>.</li>
+          <li>Si el repo es público o la política lo exige, limpia la historia.</li>
+        </ol>
+        <div class="cmds">
+          <div class="cmd"><button>git filter-repo --path .env --invert-paths</button><span>Borra el archivo de toda la historia (herramienta git-filter-repo). Coordina con el equipo: todos deben volver a clonar.</span></div>
+        </div>
+        <p class="why alert"><b>Lo importante:</b> borrar el commit NO basta. Bots escanean GitHub en minutos; asume que la clave ya fue copiada y rótala.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- INTERRUPCIONES -->
+  <section class="part" id="pausa">
+    <div class="intro"><h2>Interrupciones y cambios a medias</h2><p>Cuando tienes que dejar todo a la mitad.</p></div>
+    <div class="grid">
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Me piden arreglar un bug urgente y tengo cambios sin terminar</h3><span class="risk ok">Seguro</span></div>
+        <ol class="steps">
+          <li>Guarda lo que llevas en el cajón: <code>stash</code></li>
+          <li>Ve a main y crea <code>fix/...</code></li>
+          <li>Arregla, commit, push, PR</li>
+          <li>Vuelve a tu rama</li>
+          <li>Saca lo del cajón: <code>stash pop</code></li>
+        </ol>
+        <div class="cmds">
+          <div class="cmd"><button>git stash push -m "login a medias"</button><span>Guarda los cambios sin commit y deja la carpeta limpia.</span></div>
+          <div class="cmd"><button>git switch main && git switch -c fix/pago-doble</button><span>Rama del arreglo urgente.</span></div>
+          <div class="cmd"><button>git switch feature/login</button><span>Al terminar el arreglo, regresa.</span></div>
+          <div class="cmd"><button>git stash pop</button><span>Recupera tus cambios. <code>git stash list</code> muestra lo guardado.</span></div>
+        </div>
+        <p class="why"><b>Alternativa:</b> si el trabajo a medias es grande, haz un commit "WIP" en tu rama y luego lo corriges con amend.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Necesito solo UN commit de otra rama</h3><span class="risk warn">Cuidado</span></div>
+        <div class="viz" data-g="pick"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git log --oneline feature/pagos</button><span>Busca el hash del commit que necesitas.</span></div>
+          <div class="cmd"><button>git cherry-pick 9f8e7d6</button><span>Copia ese commit a tu rama actual.</span></div>
+        </div>
+        <p class="why"><b>Cuándo:</b> un fix urgente quedó en una rama que todavía no está lista para main.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- HISTORIAL -->
+  <section class="part" id="historial">
+    <div class="intro"><h2>Investigar el historial</h2><p>Git es también una máquina del tiempo para depurar.</p></div>
+    <div class="grid">
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>¿Quién cambió esta línea y por qué?</h3><span class="risk ok">Seguro</span></div>
+        <div class="cmds">
+          <div class="cmd"><button>git blame -L 40,60 src/pagos.js</button><span>Autor, fecha y commit de cada línea entre la 40 y la 60.</span></div>
+          <div class="cmd"><button>git show a1b2c3d</button><span>Abre ese commit completo: mensaje y cambios.</span></div>
+          <div class="cmd"><button>git log -p -- src/pagos.js</button><span>Toda la historia de un archivo con sus diferencias.</span></div>
+        </div>
+        <p class="why"><b>Para qué:</b> entender la intención antes de "arreglar" algo que alguien hizo a propósito. No es para culpar a nadie.</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Antes funcionaba y ahora no. ¿Qué commit lo dañó?</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-g="bisect"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git bisect start</button><span>Empieza la búsqueda.</span></div>
+          <div class="cmd"><button>git bisect bad</button><span>El commit actual falla.</span></div>
+          <div class="cmd"><button>git bisect good v1.2.0</button><span>Esta versión funcionaba.</span></div>
+          <div class="cmd"><button>git bisect reset</button><span>Git te mueve a la mitad, pruebas, dices good o bad, y repite hasta hallar el culpable. Luego reset.</span></div>
+        </div>
+        <p class="why"><b>Por qué:</b> en 1.000 commits encuentra el culpable en unos 10 pasos (búsqueda binaria).</p>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>¿Qué tiene mi rama que no tenga main?</h3><span class="risk ok">Seguro</span></div>
+        <div class="cmds">
+          <div class="cmd"><button>git log --oneline --graph --all</button><span>Dibuja todas las ramas en la terminal.</span></div>
+          <div class="cmd"><button>git log main..feature/login</button><span>Commits que están en tu rama y no en main.</span></div>
+          <div class="cmd"><button>git diff main...feature/login</button><span>Cambios que traería tu PR.</span></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="top"><h3><span class="sit">Situación</span>Vamos a publicar una versión</h3><span class="risk ok">Seguro</span></div>
+        <div class="viz" data-g="tag"></div>
+        <div class="cmds">
+          <div class="cmd"><button>git tag -a v1.3.0 -m "Pagos con PSE"</button><span>Marca el commit actual con un nombre de versión.</span></div>
+          <div class="cmd"><button>git push origin v1.3.0</button><span>Los tags no se suben con push normal.</span></div>
+        </div>
+        <p class="why"><b>Para qué:</b> volver exactamente a lo que está en producción con <code>git switch --detach v1.3.0</code>.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- REGLAS -->
+  <section class="part" id="reglas">
+    <div class="intro"><h2>Flujo diario y reglas de oro</h2><p>Si recuerdas solo esto, ya trabajas como en un equipo real.</p></div>
+    <div class="daily">
+      <h3>Un día normal</h3>
+      <ol class="steps">
+        <li><code>git switch main</code><br><code>git pull</code></li>
+        <li><code>git switch -c feature/x</code></li>
+        <li>Programa y haz <code>status</code>, <code>add</code>, <code>commit</code> seguido</li>
+        <li><code>git push -u origin feature/x</code></li>
+        <li>Pull Request, revisión y merge en GitHub</li>
+      </ol>
+    </div>
+    <div class="rules">
+      <div class="rule"><b>git status es gratis</b><p>Úsalo antes y después de cada comando. Te dice dónde estás y qué sigue.</p></div>
+      <div class="rule"><b>main siempre funciona</b><p>Nunca trabajes directo en main. Todo entra por rama y PR.</p></div>
+      <div class="rule"><b>Commits pequeños</b><p>Un cambio, un commit, un mensaje que explique el qué y el porqué.</p></div>
+      <div class="rule"><b>Pull antes de empezar</b><p>Actualizar seguido mantiene los conflictos pequeños.</p></div>
+      <div class="rule"><b>Lo subido no se reescribe</b><p>Si ya hiciste push: revert, no reset. Nada de --force en ramas compartidas.</p></div>
+      <div class="rule"><b>Secretos fuera del repo</b><p>.env en .gitignore desde el primer commit. Si se filtra, rota la clave.</p></div>
+    </div>
+    <p class="empty" id="vacio">No hay escenarios que coincidan con la búsqueda.</p>
+  </section>
+</main>
+
+<footer class="wrap">Comandos con la sintaxis actual de Git (switch y restore, desde Git 2.23). En versiones viejas: <code>git checkout -b rama</code> equivale a <code>git switch -c rama</code> y <code>git checkout -- archivo</code> a <code>git restore archivo</code>.</footer>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const el=(t,a,txt)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;return e;};
+  const LC=['var(--l0)','var(--l1)','var(--l2)'];
+
+  /* ---------- Grafos de commits ---------- */
+  const G={
+    nueva:{lanes:['main','feature/login'],n:[['a',0,0],['b',0,1],['c',0,2],['d',1,3,'new'],['e',1,4,'new']],e:[['a','b'],['b','c'],['c','d'],['d','e']],t:[['c','main'],['e','HEAD']]},
+    merge:{lanes:['main','tu rama'],n:[['a',0,0],['b',0,1],['f',0,2],['g',0,3],['d',1,2],['e',1,3],['m',1,4,'new','M']],e:[['a','b'],['b','f'],['f','g'],['b','d'],['d','e'],['e','m'],['g','m']]},
+    rebase:{lanes:['main','tu rama'],n:[['a',0,0],['b',0,1],['f',0,2],['g',0,3],['d',1,4,'new',"d'"],['e',1,5,'new',"e'"]],e:[['a','b'],['b','f'],['f','g'],['g','d'],['d','e']]},
+    pr:{lanes:['main','feature/login'],n:[['a',0,0],['b',0,1],['d',1,2],['e',1,3],['m',0,4,'new','PR']],e:[['a','b'],['b','m'],['b','d'],['d','e'],['e','m']],t:[['m','merge']]},
+    rech1:{lanes:['GitHub','tu main'],n:[['a',0,0],['b',0,1],['f',0,2,'','f']],e:[['a','b'],['b','f']],extra:[['x',1,2,'new','d']],e2:[['b','x']]},
+    rech2:{lanes:['main'],n:[['a',0,0],['b',0,1],['f',0,2,'','f'],['x',0,3,'new',"d'"]],e:[['a','b'],['b','f'],['f','x']],t:[['x','push ok']]},
+    amend:{lanes:['main'],n:[['a',0,0],['b',0,1],['c',0,2,'ghost','c'],['c2',0,3,'new',"c'"]],e:[['a','b'],['b','c2']],dashed:[['b','c']],t:[['c2','HEAD']]},
+    mal1:{lanes:['main'],n:[['a',0,0],['b',0,1],['x',0,2,'bad','x'],['y',0,3,'bad','y']],e:[['a','b'],['b','x'],['x','y']],t:[['y','main']]},
+    mal2:{lanes:['main','feature/reporte'],n:[['a',0,0],['b',0,1],['x',1,2,'new','x'],['y',1,3,'new','y']],e:[['a','b'],['b','x'],['x','y']],t:[['b','main'],['y','HEAD']]},
+    revert:{lanes:['main'],n:[['a',0,0],['b',0,1],['x',0,2,'bad','x'],['c',0,3],['r',0,4,'rev','x⁻¹']],e:[['a','b'],['b','x'],['x','c'],['c','r']],t:[['x','rompió'],['r','revert de x']]},
+    reflog:{lanes:['main','rescate'],n:[['a',0,0],['b',0,1],['c',1,2,'new','c'],['d',1,3,'new','d']],e:[['a','b'],['b','c'],['c','d']],t:[['b','main tras reset'],['d','HEAD@{2}']]},
+    pick:{lanes:['main','tu rama','feature/pagos'],n:[['a',0,0],['b',0,1],['d',1,2],['p',2,2],['q',2,3,'','9f8'],['r',2,4],['q2',1,4,'new',"9f8'"]],e:[['a','b'],['b','d'],['b','p'],['p','q'],['q','r'],['d','q2']],dashed:[['q','q2']]},
+    bisect:{lanes:['main'],n:[['a',0,0,'ok','✓'],['b',0,1,'ok','✓'],['c',0,2,'ok','✓'],['d',0,3,'bad','✗'],['e',0,4,'bad','✗'],['f',0,5,'bad','✗']],e:[['a','b'],['b','c'],['c','d'],['d','e'],['e','f']],t:[['a','good'],['d','culpable'],['f','bad']]},
+    tag:{lanes:['main'],n:[['a',0,0],['b',0,1,'','','v1.2.0'],['c',0,2],['d',0,3,'new','','v1.3.0']],e:[['a','b'],['b','c'],['c','d']]}
+  };
+  const X=c=>112+c*50, Y=l=>40+l*48;
+  function graph(spec){
+    const nodes=[...spec.n,...(spec.extra||[])];
+    const maxc=Math.max(...nodes.map(n=>n[2]));
+    const W=X(maxc)+70, H=Y(spec.lanes.length-1)+34;
+    const s=el('svg',{viewBox:`0 0 ${W} ${H}`,width:W,role:'img','aria-label':'Diagrama de commits'});
+    const pos={};nodes.forEach(n=>pos[n[0]]={x:X(n[2]),y:Y(n[1]),l:n[1]});
+    spec.lanes.forEach((name,i)=>{
+      s.append(el('line',{x1:104,x2:W-10,y1:Y(i),y2:Y(i),stroke:'var(--line)','stroke-width':1}));
+      s.append(el('text',{x:8,y:Y(i)+4,'font-family':'var(--f-mono)','font-size':11.5,'font-weight':600,fill:LC[i]},name));
+    });
+    const edge=(a,b,dash)=>{const p=pos[a],q=pos[b];const col=LC[q.l];
+      const d=p.y===q.y?`M${p.x} ${p.y}H${q.x}`:`M${p.x} ${p.y}C${p.x+30} ${p.y},${q.x-30} ${q.y},${q.x} ${q.y}`;
+      s.append(el('path',{d,fill:'none',stroke:dash?'var(--muted)':col,'stroke-width':2.5,'stroke-dasharray':dash?'4 4':'none'}));};
+    (spec.e||[]).forEach(([a,b])=>edge(a,b));(spec.e2||[]).forEach(([a,b])=>edge(a,b));(spec.dashed||[]).forEach(([a,b])=>edge(a,b,true));
+    nodes.forEach(n=>{const p=pos[n[0]],kind=n[3]||'',col=LC[n[1]];
+      if(kind==='new')s.append(el('circle',{cx:p.x,cy:p.y,r:12.5,fill:'none',stroke:'var(--ink)','stroke-width':1.5}));
+      let fill=col,stroke='none',sw=0,dash='none';
+      if(kind==='ghost'){fill='var(--bg)';stroke='var(--muted)';sw=2;dash='3 3';}
+      if(kind==='bad')fill='var(--danger)';
+      if(kind==='ok')fill='var(--ok)';
+      if(kind==='rev'){fill='var(--surface)';stroke=col;sw=3;}
+      s.append(el('circle',{cx:p.x,cy:p.y,r:8.5,fill,stroke,'stroke-width':sw,'stroke-dasharray':dash}));
+      const lab=n[4]!=null?n[4]:'';
+      if(lab)s.append(el('text',{x:p.x,y:p.y+26,'text-anchor':'middle','font-family':'var(--f-mono)','font-size':11,fill:'var(--muted)'},lab));
+      if(n[5])tagAt(p,n[5],'var(--accent)');
+    });
+    (spec.t||[]).forEach(([id,txt])=>tagAt(pos[id],txt,txt==='HEAD'?'var(--ink)':'var(--muted)'));
+    function tagAt(p,txt,col){const w=txt.length*6.7+12;const x=Math.min(Math.max(p.x-w/2,106),W-w-2);
+      s.append(el('rect',{x,y:p.y-30,width:w,height:16,rx:8,fill:'var(--surface)',stroke:col,'stroke-width':1}));
+      s.append(el('text',{x:x+w/2,y:p.y-18.5,'text-anchor':'middle','font-family':'var(--f-mono)','font-size':10.5,'font-weight':600,fill:col},txt));}
+    return s;
+  }
+  document.querySelectorAll('[data-g]').forEach(d=>d.append(graph(G[d.dataset.g])));
+
+  /* ---------- Flujos entre zonas ---------- */
+  const Z=['Trabajo','Staging','Commits','GitHub'];
+  const F={
+    init:[[0,1,'add'],[1,2,'commit'],[2,3,'push']],
+    clone:[[3,0,'clone']],
+    ciclo:[[0,1,'add'],[1,2,'commit'],[2,3,'push']],
+    parcial:[[0,1,'add -p']],
+    pull:[[3,0,'pull']],
+    restore:[[2,0,'restore (vuelve al último commit)']]
+  };
+  const BX=k=>8+k*136, BW=100;
+  function flow(arr){
+    const s=el('svg',{viewBox:'0 0 520 118',width:520,role:'img','aria-label':'Movimiento de cambios entre zonas'});
+    s.append(defs());
+    const on=new Set();arr.forEach(([a,b])=>{on.add(a);on.add(b);});
+    Z.forEach((z,k)=>{
+      s.append(el('rect',{x:BX(k),y:28,width:BW,height:36,rx:8,fill:on.has(k)?'var(--surface)':'none',stroke:on.has(k)?'var(--ink)':'var(--line)','stroke-width':on.has(k)?1.5:1}));
+      s.append(el('text',{x:BX(k)+BW/2,y:50,'text-anchor':'middle','font-size':13,'font-weight':700,'font-family':'var(--f-body)',fill:on.has(k)?'var(--ink)':'var(--muted)'},z));
+    });
+    arr.forEach(([a,b,lab])=>{
+      let d,lx,ly;
+      if(b===a+1){d=`M${BX(a)+BW+3} 46H${BX(b)-4}`;lx=BX(a)+BW+18;ly=20;}
+      else if(a===b){const cx=BX(a)+BW/2;d=`M${cx-22} 66C${cx-22} 98,${cx+22} 98,${cx+22} 68`;lx=cx;ly=110;}
+      else{const x1=BX(a)+BW/2,x2=BX(b)+BW/2;d=`M${x1} 66C${x1} 100,${x2} 100,${x2} 68`;lx=(x1+x2)/2;ly=110;}
+      s.append(el('path',{d,fill:'none',stroke:'var(--accent)','stroke-width':2.5,'marker-end':'url(#fa)'}));
+      s.append(el('text',{x:lx,y:ly,'text-anchor':'middle','font-family':'var(--f-mono)','font-size':12,'font-weight':600,fill:'var(--accent)'},lab));
+    });
+    return s;
+  }
+  function defs(){const d=el('defs',{});const m=el('marker',{id:'fa',viewBox:'0 0 10 10',refX:8,refY:5,markerWidth:5,markerHeight:5,orient:'auto-start-reverse'});m.append(el('path',{d:'M0 0L10 5L0 10z',fill:'var(--accent)'}));d.append(m);return d;}
+  document.querySelectorAll('[data-flow]').forEach(d=>d.append(flow(F[d.dataset.flow])));
+
+  /* ---------- Mapa de zonas ---------- */
+  (function(){
+    const s=document.getElementById('mapa');
+    const m=el('defs',{});[['ma','var(--accent)'],['mb','var(--l1)']].forEach(([id,c])=>{const k=el('marker',{id,viewBox:'0 0 10 10',refX:8,refY:5,markerWidth:6,markerHeight:6,orient:'auto-start-reverse'});k.append(el('path',{d:'M0 0L10 5L0 10z',fill:c}));m.append(k);});s.append(m);
+    const Z=[['Directorio de trabajo','tus archivos editados'],['Staging','lo que irá al commit'],['Repositorio local','tus commits (.git)'],['Repositorio remoto','GitHub, del equipo']];
+    const bx=k=>16+k*186, bw=154, y0=78, bh=66;
+    Z.forEach(([t,sub],k)=>{
+      s.append(el('rect',{x:bx(k),y:y0,width:bw,height:bh,rx:8,fill:k===3?'var(--bg)':'var(--surface)',stroke:'var(--ink)','stroke-width':1.25}));
+      s.append(el('text',{x:bx(k)+bw/2,y:y0+28,'text-anchor':'middle','font-family':'var(--f-display)','font-size':14.5,'font-weight':600,fill:'var(--ink)'},t));
+      s.append(el('text',{x:bx(k)+bw/2,y:y0+48,'text-anchor':'middle','font-size':11.5,fill:'var(--muted)','font-family':'var(--f-body)'},sub));
+    });
+    const fw=[[0,'git add'],[1,'git commit'],[2,'git push']];
+    fw.forEach(([k,l])=>{const x1=bx(k)+bw+3,x2=bx(k+1)-4;
+      s.append(el('path',{d:`M${x1} ${y0+22}H${x2}`,stroke:'var(--accent)','stroke-width':2.5,fill:'none','marker-end':'url(#ma)'}));
+      s.append(el('text',{x:(x1+x2)/2,y:y0-14,'text-anchor':'middle','font-family':'var(--f-mono)','font-size':12.5,'font-weight':600,fill:'var(--accent)'},l));
+      s.append(el('line',{x1:(x1+x2)/2,x2:(x1+x2)/2,y1:y0-8,y2:y0+16,stroke:'var(--accent)','stroke-width':1,'stroke-dasharray':'2 3'}));
+    });
+    const back=[[1,0,'git restore --staged',y0+bh+26],[3,2,'git fetch',y0+bh+26],[3,0,'git pull  (fetch + merge)',y0+bh+64]];
+    back.forEach(([a,b,l,yy])=>{const x1=bx(a)+bw/2,x2=bx(b)+bw/2;
+      s.append(el('path',{d:`M${x1} ${y0+bh+2}V${yy}H${x2}V${y0+bh+6}`,stroke:'var(--l1)','stroke-width':2,fill:'none','marker-end':'url(#mb)'}));
+      s.append(el('text',{x:(x1+x2)/2,y:yy-6,'text-anchor':'middle','font-family':'var(--f-mono)','font-size':12,'font-weight':600,fill:'var(--l1)'},l));
+    });
+    s.append(el('text',{x:16,y:24,'font-size':12,fill:'var(--muted)','font-family':'var(--f-body)'},'Azul: llevas cambios hacia GitHub.  Naranja: los traes de vuelta.'));
+  })();
+
+  /* ---------- Leyenda ---------- */
+  (function(){
+    const s=document.getElementById('leyenda');const items=[['','commit'],['new','commit nuevo'],['bad','commit con error'],['ok','funciona'],['ghost','reemplazado'],['rev','revert']];
+    let x=14;items.forEach(([k,t],i)=>{const y=20;if(i)x+=items[i-1][1].length*6.4+44;
+      if(k==='new')s.append(el('circle',{cx:x,cy:y,r:11,fill:'none',stroke:'var(--ink)','stroke-width':1.5}));
+      let f='var(--l0)',st='none',sw=0,da='none';
+      if(k==='bad')f='var(--danger)';if(k==='ok')f='var(--ok)';if(k==='ghost'){f='var(--bg)';st='var(--muted)';sw=2;da='3 3';}if(k==='rev'){f='var(--surface)';st='var(--l0)';sw=3;}
+      s.append(el('circle',{cx:x,cy:y,r:7.5,fill:f,stroke:st,'stroke-width':sw,'stroke-dasharray':da}));
+      s.append(el('text',{x:x+16,y:y+4,'font-size':12,fill:'var(--muted)','font-family':'var(--f-body)'},t));
+    });
+  })();
+
+  /* ---------- Árbol: deshacer ---------- */
+  (function(){
+    const s=document.getElementById('arbol');
+    const rows=[
+      ['Cambios que no has preparado','git restore <archivo>','danger','se pierden'],
+      ['Cambios ya preparados con add','git restore --staged <archivo>','ok','no se pierde nada'],
+      ['Último commit, sin push','git commit --amend','warn','reescribe tu commit'],
+      ['Varios commits, sin push','git reset HEAD~2','warn','los cambios vuelven al disco'],
+      ['Commit que ya está en GitHub','git revert <hash>','ok','seguro para el equipo']
+    ];
+    const rx=16,ry=126,rw=150,rh=48;
+    s.append(el('rect',{x:rx,y:ry,width:rw,height:rh,rx:8,fill:'var(--accent)'}));
+    s.append(el('text',{x:rx+rw/2,y:ry+20,'text-anchor':'middle','font-family':'var(--f-display)','font-size':14,'font-weight':600,fill:'var(--surface)'},'¿Qué quieres'));
+    s.append(el('text',{x:rx+rw/2,y:ry+37,'text-anchor':'middle','font-family':'var(--f-display)','font-size':14,'font-weight':600,fill:'var(--surface)'},'deshacer?'));
+    const col={danger:'var(--danger)',ok:'var(--ok)',warn:'var(--warn)'};
+    rows.forEach(([sit,cmd,r,note],i)=>{const y=20+i*56,cy=y+20;
+      s.append(el('path',{d:`M${rx+rw} ${ry+rh/2}C${rx+rw+30} ${ry+rh/2},${200} ${cy},${226} ${cy}`,fill:'none',stroke:'var(--line)','stroke-width':2}));
+      s.append(el('rect',{x:226,y,width:236,height:40,rx:8,fill:'var(--surface)',stroke:'var(--line)'}));
+      s.append(el('text',{x:240,y:y+25,'font-size':13,'font-family':'var(--f-body)',fill:'var(--ink)'},sit));
+      s.append(el('path',{d:`M${466} ${cy}H${494}`,stroke:col[r],'stroke-width':2.5,fill:'none'}));
+      s.append(el('rect',{x:496,y,width:248,height:40,rx:8,fill:'var(--code)',stroke:col[r],'stroke-width':1.5}));
+      s.append(el('text',{x:508,y:y+18,'font-size':12.5,'font-weight':600,'font-family':'var(--f-mono)',fill:'var(--ink)'},cmd));
+      s.append(el('text',{x:508,y:y+33,'font-size':11,'font-family':'var(--f-body)',fill:col[r]},note));
+    });
+  })();
+
+  /* ---------- Copiar y buscar ---------- */
+  document.querySelectorAll('.cmd button').forEach(b=>{b.title='Clic para copiar';b.addEventListener('click',()=>{
+    const done=()=>{b.classList.add('copied');setTimeout(()=>b.classList.remove('copied'),1200);};
+    try{navigator.clipboard.writeText(b.textContent).then(done,()=>sel(b));}catch(e){sel(b);}
+  });});
+  function sel(n){const r=document.createRange();r.selectNodeContents(n);const s=getSelection();s.removeAllRanges();s.addRange(r);}
+  const q=document.getElementById('q');
+  q.addEventListener('input',()=>{const v=q.value.trim().toLowerCase();let any=0;
+    document.querySelectorAll('.card').forEach(c=>{const hit=!v||c.textContent.toLowerCase().includes(v);c.hidden=!hit;if(hit)any++;});
+    document.querySelectorAll('section.part').forEach(s=>{if(s.id==='reglas')return;s.hidden=v&&!s.querySelector('.card:not([hidden])');});
+    document.getElementById('vacio').style.display=any?'none':'block';
+  });
+})();
+</script>
+
+</body></html>
